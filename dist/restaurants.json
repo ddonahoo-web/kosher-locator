@@ -1,0 +1,82 @@
+[
+  {
+    "id": "mendys-nyc",
+    "name": "Mendy's",
+    "address": "431 E 73rd St, New York, NY 10021",
+    "latitude": 40.7692,
+    "longitude": -73.9581,
+    "phone": "+1-212-772-6666",
+    "website": "https://www.mendys.net",
+    "hours": "Sun-Thu 11am-10pm, Fri 11am-3pm",
+    "certification": "OU",
+    "cuisine": ["Dairy", "Pizza", "Pasta"],
+    "city": "New York",
+    "state": "NY",
+    "description": "Kosher dairy restaurant and pizzeria on the Upper East Side."
+  },
+  {
+    "id": "pizza-palace-la",
+    "name": "Pizza Palace",
+    "address": "8832 W Pico Blvd, Los Angeles, CA 90035",
+    "latitude": 34.0489,
+    "longitude": -118.3896,
+    "phone": "+1-310-858-8181",
+    "website": "https://www.pizzapalacela.com",
+    "hours": "Sun-Thu 11am-10pm, Fri 11am-2pm",
+    "certification": "OK",
+    "cuisine": ["Pizza", "Dairy"],
+    "city": "Los Angeles",
+    "state": "CA"
+  },
+  {
+    "id": "shalom-chicago",
+    "name": "Shalom Grill",
+    "address": "2728 W Howard St, Chicago, IL 60645",
+    "latitude": 42.0195,
+    "longitude": -87.6876,
+    "certification": "Kof-K",
+    "cuisine": ["Meat", "Grill", "Israeli"],
+    "city": "Chicago",
+    "state": "IL",
+    "description": "Kosher meat grill and Israeli cuisine."
+  },
+  {
+    "id": "cafe-teaneck",
+    "name": "Café Teaneck",
+    "address": "493 Cedar Ln, Teaneck, NJ 07666",
+    "latitude": 40.8876,
+    "longitude": -74.0154,
+    "phone": "+1-201-837-0505",
+    "hours": "Sun-Thu 8am-9pm, Fri 8am-3pm",
+    "certification": "OU",
+    "cuisine": ["Dairy", "Café", "Sandwiches"],
+    "city": "Teaneck",
+    "state": "NJ"
+  },
+  {
+    "id": "six-thirteen-miami",
+    "name": "Six Thirteen",
+    "address": "3015 NE 163rd St, North Miami Beach, FL 33160",
+    "latitude": 25.9344,
+    "longitude": -80.1623,
+    "website": "https://www.sixthirteen.com",
+    "certification": "OU",
+    "cuisine": ["Meat", "Steakhouse", "Fine Dining"],
+    "city": "North Miami Beach",
+    "state": "FL",
+    "description": "Upscale kosher steakhouse."
+  },
+  {
+    "id": "shuk-brooklyn",
+    "name": "The Shuk",
+    "address": "474 Fulton St, Brooklyn, NY 11201",
+    "latitude": 40.6893,
+    "longitude": -73.9875,
+    "phone": "+1-718-858-5858",
+    "hours": "Sun-Thu 11am-10pm",
+    "certification": "OU",
+    "cuisine": ["Israeli", "Mediterranean", "Meat"],
+    "city": "Brooklyn",
+    "state": "NY"
+  }
+]

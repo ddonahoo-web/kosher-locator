@@ -1,584 +1,303 @@
-# Kosher Restaurant Locator — Product Requirements Document (PRD)
+# KosherEats — Product Requirements Document (PRD)
 
-**Version:** 1.0  
-**Last updated:** February 2025  
-**Status:** Draft for implementation
+**Version:** 2.0  
+**Last updated:** February 2026  
+**Status:** Implemented (v1)
 
 ---
 
 ## 1. Overview & Product Vision
 
-### 1.1 What We’re Building
+### 1.1 What We Built
 
-A **web application** that helps users discover and navigate to **kosher restaurants across the United States**. Users interact with an **interactive map**, view **restaurant details**, get **directions**, and can **filter**, **search**, and **save favorites**.
+A **single-page web application** that helps users discover and navigate to **kosher restaurants across the United States**. Users interact with an **interactive map**, view **restaurant details** via a slide-in overlay panel, get **directions**, and can **filter**, **search**, and **sort** results. The UI follows a Yelp-inspired design language with an **orange brand theme**.
 
 ### 1.2 Goals
 
-- **Discovery:** Make it easy to find kosher restaurants by location, name, certification, and cuisine.
-- **Trust:** Surface kosher certification (e.g., OU, OK, Kof-K) clearly.
-- **Action:** One-tap directions, call, and website from the app.
-- **Accessibility & performance:** Usable on desktop and mobile, with fast load and smooth interaction.
+- **Discovery:** Find kosher restaurants by location, name, certification, cuisine, rating, or price level.
+- **Trust:** Surface kosher certification (e.g., OU, OK, Kof-K, Star-K) clearly on every card and detail view.
+- **Action:** One-tap directions (Apple Maps / Google Maps), call, and website access.
+- **Accessibility & performance:** Usable on any screen size (desktop, tablet, mobile) with a persistent header, smooth map interaction, and virtualized list scrolling.
 
 ### 1.3 Target Users
 
 - Jewish consumers looking for kosher dining options while traveling or locally.
-- Tourists and locals who want to filter by certification or cuisine and get directions quickly.
+- Tourists and locals who want to filter by certification or cuisine, sort by rating, and get directions quickly.
 
 ---
 
-## 2. Tech Stack (Specific)
+## 2. Tech Stack
 
-We use a **single tech stack** so the codebase stays consistent and maintainable. All versions are pinned where possible.
+All versions are pinned where possible. The codebase is a single Vite + React SPA.
 
 | Layer | Technology | Version (min) | Purpose |
 |-------|------------|--------------|---------|
 | **Language** | TypeScript | 5.x | Type safety, better IDE support, fewer runtime bugs. |
 | **Framework** | React | 18.x | UI components, hooks, ecosystem. |
 | **Build / Dev** | Vite | 5.x | Fast dev server, optimized production builds, native ESM. |
-| **Routing** | React Router | 6.x | Client-side routes, URL state for filters and detail view. |
-| **Map** | Leaflet + React-Leaflet | 1.9+ / 4.x | Interactive map, markers, clustering; no API key for base tiles (OSM). |
-| **Base map tiles** | OpenStreetMap (default) | — | Free; optional swap to Mapbox for custom styling later. |
-| **Clustering** | react-leaflet-cluster | 2.x | Cluster many pins in one area for performance and clarity. |
-| **State (app)** | Zustand | 4.x | Filters, search query, selected restaurant, UI mode (map/list). |
-| **State (server/async)** | TanStack Query (React Query) | 5.x | If we add an API later; for static JSON, optional. |
-| **Data validation** | Zod | 3.x | Validate `restaurants.json` shape at load time. |
-| **Styling** | Tailwind CSS | 3.x | Utility-first CSS, responsive breakpoints, consistent design. |
-| **List virtualization** | TanStack Virtual | 3.x | Smooth scrolling for long restaurant lists. |
-| **Search (fuzzy, optional)** | Fuse.js | 7.x | Fuzzy search by name/city/address in v2. |
-| **Testing** | Vitest + React Testing Library | 1.x / 16.x | Unit and component tests. |
-| **Linting / Format** | ESLint + Prettier | 9.x / 3.x | Code quality and style. |
+| **Routing** | React Router | 6.x | Client-side URL state for search and filter params. |
+| **Map** | Leaflet + React-Leaflet | 1.9+ / 4.x | Interactive map, markers, popups; no API key (OSM tiles). |
+| **Base map tiles** | OpenStreetMap | — | Free tile layer; swappable to Mapbox later. |
+| **Clustering** | react-leaflet-cluster | 2.x | Groups nearby pins for performance and clarity. |
+| **State** | Zustand | 4.x | Global state: search, filters, selected restaurant, view mode, sort. |
+| **Data validation** | Zod | 3.x | Validates `restaurants.json` shape at load time. |
+| **Styling** | Tailwind CSS | 3.x | Utility-first CSS, responsive breakpoints, custom brand color palette. |
+| **List virtualization** | TanStack Virtual | 3.x | Smooth scrolling for the restaurant list at any length. |
+| **Linting / Format** | ESLint | 9.x | Code quality and style. |
 
-### 2.1 Why Not…
+### 2.1 Architecture Decisions
 
-- **Next.js:** We don’t need SSR/SSG for v1; Vite + React keeps the app simpler. We can migrate later if we need SEO or server endpoints.
-- **Google Maps / Mapbox for v1:** Leaflet + OSM avoids API keys and quotas for the first version; we can add Mapbox later for styling.
-- **Redux:** Zustand is enough for filter/search/selection state and is easier for a small team to reason about.
-- **CSS-in-JS (styled-components, etc.):** Tailwind gives us fast iteration and built-in responsive utilities without extra runtime.
+- **Single-page, no route-based detail view.** The restaurant detail panel is a state-managed overlay, not a separate route (`/restaurant/:id`). This prevents the map from unmounting and losing its viewport state when a pin is clicked.
+- **Stacking context isolation.** The Leaflet map container uses `isolation: isolate` in CSS so Leaflet's internal z-indexes (400+) are contained and never paint above the persistent header.
+- **No SSR.** Vite + React keeps the app simple for v1. Migration to Next.js is possible later if SEO is needed.
+- **Zustand over Redux.** Lightweight, minimal boilerplate, and sufficient for the filter/search/selection state.
 
 ---
 
-## 3. Feature Breakdown (Detailed)
-
-Each feature is described with: **What it does**, **User flow**, **Technical considerations**, and **Dependencies**.
-
----
+## 3. Implemented Features
 
 ### 3.1 Interactive US Map with Restaurant Pins
 
-**What it does**
+- Renders a Leaflet map centered on the continental US, with OpenStreetMap tiles.
+- Displays a **numbered teardrop marker** for each restaurant (up to 50; falls back to default Leaflet icons beyond that).
+- **Marker clustering** groups dense pins into orange circular cluster badges.
+- On initial load, **fits map bounds** to all restaurant locations.
+- Clicking a marker selects the restaurant, triggering `flyTo` zoom animation and opening the detail panel.
+- `MapResizeHandler` uses a `ResizeObserver` to call `map.invalidateSize()` when the map container resizes (e.g., mobile view toggle).
 
-- Renders a map of the **United States** (or North America) in the main view.
-- Displays a **pin (marker)** for each kosher restaurant at its geographic coordinates.
-- Clicking a pin **selects** that restaurant and shows a preview (name, address, brief info) or opens the detail view.
-- Map supports **pan** and **zoom** so users can explore regions.
-- **Marker clustering** when many pins are in one area to reduce clutter and improve performance.
+### 3.2 Restaurant Detail Overlay
 
-**User flow**
+- **Slide-in panel** (right side, 440px on desktop; full-screen on mobile) with a `slideIn` CSS animation.
+- **Hero image** with gradient overlay, restaurant name, star rating, and review count.
+- Quick-info bar: certification badge, price level.
+- Cuisine tags, description, and action buttons.
+- Close via close button, Escape key, or backdrop click.
+- Focus management: auto-focuses the first interactive element on open.
+- **No route change** — the panel is rendered conditionally based on `selectedRestaurantId` in Zustand state.
 
-1. User lands on the app and sees the map with pins.
-2. User pans/zooms to a city or state.
-3. User clicks a pin → selection feedback (pin highlight, popup or side panel).
-4. User can click elsewhere or another pin to change selection.
+### 3.3 Directions, Call & Website Actions
 
-**Technical considerations**
+- **Google Maps** and **Apple Maps** direction buttons using `lat,lng` coordinates.
+- **Call** button via `tel:` link (shown only when phone data exists).
+- **Website** button via `target="_blank"` link (shown only when a valid `http(s)` URL exists).
+- URL validation: only `http`/`https` URLs are rendered as links.
 
-- **Library:** Leaflet via React-Leaflet; base tiles from OpenStreetMap (no key). Optional: Mapbox GL JS later for custom styling.
-- **Data:** Each restaurant has at least `id`, `name`, `latitude`, `longitude`, and optionally `address` for tooltips.
-- **Clustering:** Use `react-leaflet-cluster` (or Leaflet.markercluster) so pins in the same area group into a single cluster until zoomed in.
-- **Responsive:** Map must work on desktop and mobile (touch pan/zoom). Set a minimum height (e.g., 400px on mobile, 70vh on desktop).
-- **Bounds:** On initial load, fit map bounds to continental US (or to visible restaurants) so the user sees the full scope.
+### 3.4 Data Model & Source
 
-**Dependencies**
-
-- Restaurant dataset with `latitude` / `longitude` (or geocoded addresses).
-- No map API key required for OSM base tiles.
-
----
-
-### 3.2 Restaurant Detail View (from Pin Click)
-
-**What it does**
-
-- When a user clicks a pin (or a list item), show a **dedicated view** with full restaurant information.
-- Includes: **name**, full **address**, **phone**, **website**, **hours**, **kosher certification/agency**, **cuisine type**, and optionally **description** and **photos**.
-- **CTAs:** “Get directions”, “Call”, “Website” (see optional features).
-
-**User flow**
-
-1. User clicks a pin or a search/list result.
-2. App shows a detail panel (sidebar on desktop, bottom sheet or full screen on mobile).
-3. User reads info and can tap “Directions”, “Call”, or “Website”.
-4. User closes the panel or selects another restaurant.
-
-**Technical considerations**
-
-- **Data model:** Each restaurant has fields for all displayed attributes (see Data Model).
-- **Layout:** Side panel on desktop (map stays visible); full-screen or bottom sheet on mobile so the map doesn’t feel cramped.
-- **Routing:** Optional deep link, e.g. `/restaurant/:id`, so sharing a link opens that restaurant’s detail.
-- **Accessibility:** Keyboard navigation (Escape to close, focus trap in modal), ARIA labels, and screen reader support for the detail view.
-
-**Dependencies**
-
-- Feature 3.1 (map + pins).
-- Complete restaurant data schema and source (JSON or API).
-
----
-
-### 3.3 “Directions” Button — Apple Maps / Google Maps
-
-**What it does**
-
-- A **“Directions”** (or “Get directions”) button in the restaurant detail view (and optionally in the pin popup).
-- On click, open the user’s preferred maps app with the **destination** set to the restaurant’s address or coordinates.
-- **Apple Maps:** `https://maps.apple.com/?daddr=...`
-- **Google Maps:** `https://www.google.com/maps/dir/?api=1&destination=...`
-- Optionally: **two buttons** (“Open in Apple Maps” / “Open in Google Maps”) or device detection to default one.
-
-**User flow**
-
-1. User is viewing a restaurant (detail or popup).
-2. User clicks “Directions”.
-3. New tab/window opens to Apple Maps or Google Maps with destination = restaurant address/coordinates.
-4. User completes the trip in the external app.
-
-**Technical considerations**
-
-- **URL formats:**
-  - Apple: `https://maps.apple.com/?daddr=<lat>,<lng>` or `?daddr=<encoded address>`.
-  - Google: `https://www.google.com/maps/dir/?api=1&destination=<lat>,<lng>` or `destination=<encoded address>`.
-- Use `encodeURIComponent` for address strings in query params.
-- Optional: store user preference (Apple vs Google) in `localStorage`; or always show both buttons.
-- Optional: pass “origin” (user’s location) if available for better routing.
-
-**Dependencies**
-
-- Restaurant `address` and/or `latitude`/`longitude`. Client-side only; no backend.
-
----
-
-### 3.4 Restaurant Data Model and Source
-
-**What it does**
-
-- Defines the **structure** of a restaurant (fields and types).
-- Provides the **list** of kosher restaurants that the map and UI consume.
-- **v1:** Static JSON file(s) (e.g. `restaurants.json`). **v2:** Optional API or CMS.
-
-**Data model (minimum + recommended)**
+Static JSON file at `public/restaurants.json`, validated at load time with Zod.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | string | Yes | Unique identifier (e.g. UUID or slug). |
+| `id` | string | Yes | Unique identifier. |
 | `name` | string | Yes | Display name. |
 | `address` | string | Yes | Full street address. |
 | `latitude` | number | Yes | WGS84. |
 | `longitude` | number | Yes | WGS84. |
-| `phone` | string | No | E.164 or display format. |
-| `website` | string (URL) | No | Must be valid URL. |
-| `hours` | string or object | No | Human-readable or structured (e.g. per day). |
-| `certification` / `kosherAgency` | string | No | e.g. "OU", "OK", "Kof-K". |
-| `cuisine` / `cuisineType` | string or string[] | No | e.g. "Dairy", "Pizza", "Meat". |
+| `phone` | string | No | Display or E.164 format. |
+| `website` | string (URL) | No | Must be a valid URL. |
+| `hours` | string | No | Human-readable hours. |
+| `certification` | string | No | e.g., "OU", "OK", "Kof-K", "Star-K". |
+| `cuisine` | string \| string[] | No | e.g., "Dairy", "Pizza", ["Meat", "Grill"]. |
 | `description` | string | No | Short blurb. |
-| `city` | string | No | Extracted or explicit for search. |
-| `state` | string | No | State code (e.g. "NY"). |
-| `imageUrl` | string (URL) | No | Single hero image. |
+| `city` | string | No | City name for search. |
+| `state` | string | No | State code (e.g., "NY"). |
+| `imageUrl` | string (URL) | No | Hero image URL. |
+| `rating` | number (0–5) | No | Average star rating. |
+| `reviewCount` | integer (>= 0) | No | Total review count. |
+| `priceLevel` | "$" \| "$$" \| "$$$" \| "$$$$" | No | Price tier. |
+
+The dataset currently contains 18 restaurants across the US.
+
+### 3.5 Search
+
+- Search input in the **persistent header** with a magnifying glass icon.
+- Searches by **name**, **address**, **city**, and **state** (case-insensitive substring match).
+- **300ms debounce** on input to avoid filtering on every keystroke.
+- Search query synced to URL param `?q=` for shareable/bookmarkable links.
+- Displays result count ("X of Y results") in the header on desktop.
+- "No results" warning bar when filters/search yield zero matches.
+
+### 3.6 Filters
+
+- **Certification filter chips**: "All Certifications" plus a chip per unique certification found in the data. Active chip uses brand orange; inactive uses a neutral pill style.
+- **Cuisine dropdown**: populated from unique cuisines in the dataset.
+- **Clear Filters** button appears when any filter is active.
+- Filter state synced to URL params (`?cert=`, `?cuisine=`).
+- Filters derived from the live dataset so they stay in sync automatically.
+
+### 3.7 Sorting
+
+- **Sort dropdown** in the list header with 7 options:
+  - Recommended (weighted score: rating × log10(reviewCount + 1))
+  - Highest Rated
+  - Most Reviewed
+  - Name (A–Z)
+  - Name (Z–A)
+  - Price: Low to High
+  - Price: High to Low
+- Sort state managed in Zustand; applies after search + filters.
+
+### 3.8 List View
+
+- Virtualized scrolling via **TanStack Virtual** (estimated row height: 180px, overscan: 5).
+- Each card shows: numbered badge, restaurant image (with hover zoom), name, star rating, review count, certification, price level, city/state, description excerpt (2-line clamp), and cuisine tags (up to 4).
+- Clicking a card selects the restaurant (same behavior as clicking a map pin).
+- Sticky sort header inside the list.
+
+### 3.9 Responsive Layout
+
+**Desktop (lg+ / 1024px and above):**
+- **Persistent header** (orange brand bar with logo, search, result count).
+- **Filter bar** below the header (certification chips, cuisine dropdown).
+- **Split layout**: fixed-width list sidebar (480px) on the left, flexible map fills the remaining space on the right. Both are always visible.
+- Map/List toggle is hidden on desktop.
+- Detail panel overlays the right side (440px) over the map area.
+
+**Mobile (< 1024px):**
+- Header and filter bar remain visible.
+- **Map/List toggle** in the filter bar switches between full-width map and full-width list.
+- Detail panel opens full-screen.
+- Filter bar supports horizontal scroll for overflow.
+
+### 3.10 Z-Index & Stacking Architecture
+
+The app uses a deliberate stacking context hierarchy to prevent the map from overlapping the header during drag/pan:
 
-**User flow**
-
-- Not user-facing; underpins map pins, detail view, search, and filters.
-
-**Technical considerations**
-
-- **Static:** One or more JSON files (e.g. `public/restaurants.json` or imported at build time).
-- **Validation:** Validate at load with **Zod** so malformed data doesn’t crash the app; TypeScript types mirror the schema.
-- **Geocoding:** If only addresses exist, run a one-time geocoding (e.g. Mapbox/Google Geocoding) and store `latitude`/`longitude` in the JSON.
-- **Normalization:** Normalize `certification` and `cuisine` (e.g. lowercase, trim) so filters and facets stay consistent.
-
-**Dependencies**
-
-- None for first load; sourcing the list is product/ops.
-
----
-
-### 3.5 Search (by Name, City, or Address)
-
-**What it does**
-
-- A **search input** in the header or above the map.
-- User types a query; app **filters** restaurants by name, city, and/or address.
-- Results: **(a)** filtered pins on the map, **(b)** a list beside the map, or **(c)** both.
-- “No results” message with suggestion to broaden search.
-
-**User flow**
-
-1. User types e.g. “pizza Brooklyn” or “Teaneck”.
-2. App filters restaurants (client-side in v1).
-3. Map zooms/pans to show matching pins; list shows matching items.
-4. User clicks a result to open detail view.
-
-**Technical considerations**
-
-- **Match against:** `name`, `address`, and a dedicated `city` (or parsed from address). Case-insensitive substring match for v1.
-- **Debounce:** 300 ms on input to avoid filtering on every keystroke.
-- **v2:** Fuzzy search (e.g. Fuse.js) or backend full-text search for scale.
-- **Sync:** Search state can live in URL (e.g. `?q=pizza`) for shareable links.
-
-**Dependencies**
-
-- Data model/source; map and list UI.
-
----
-
-### 3.6 Filters (Certification, Cuisine, Open Now)
-
-**What it does**
-
-- **Filter controls** (dropdowns, checkboxes, or chips) to narrow restaurants.
-- Examples: **Kosher certification** (OU, OK, Kof-K), **cuisine type** (dairy, meat, pizza, etc.), **Open now** (if hours data exists).
-- Filter state applies to **map pins** and **list**: only matching restaurants are shown.
-
-**User flow**
-
-1. User opens filters (sidebar or inline).
-2. User selects e.g. “OU” and “Pizza”.
-3. Map and list update to show only OU-certified pizza places.
-4. User clears filters to see all again.
-
-**Technical considerations**
-
-- **Combine with search:** Apply filters on top of search (or one combined predicate).
-- **“Open now”:** Requires parseable `hours` and current time + timezone (e.g. `date-fns` or `dayjs`).
-- **URL:** Persist in query params (e.g. `?cert=OU&cuisine=pizza`) for shareable/bookmarkable views.
-- **Options:** Filter options derived from data (e.g. unique certifications) so they stay in sync.
-
-**Dependencies**
-
-- Data model (certification, cuisine, hours); map and list.
-
----
-
-### 3.7 List View (Alternative to Map)
-
-**What it does**
-
-- A **scrollable list** of restaurants (cards or rows) in addition to (or toggled with) the map.
-- Each item: name, address snippet, certification, cuisine.
-- Clicking an item **selects** that restaurant (highlights pin if map visible, opens detail view).
-- List can be filtered by **search/filters** and optionally by **current map bounds** (only restaurants in viewport).
-
-**User flow**
-
-1. User toggles or lands on “List” view.
-2. User scrolls; clicking an item opens detail or focuses map on that pin.
-3. Optional: list and map stay in sync (e.g. list shows only restaurants in viewport).
-
-**Technical considerations**
-
-- **Layout:** List left/right of map on desktop; tab or toggle on mobile (Map | List).
-- **Virtualization:** Use **TanStack Virtual** (or react-window) for long lists to keep scrolling smooth.
-- **Sync:** When map moves/zooms, optionally filter list to “restaurants in current bounds”.
-
-**Dependencies**
-
-- Data; map; search and filters.
-
----
-
-### 3.8 Responsive Layout and Mobile UX
-
-**What it does**
-
-- App works on **desktop**, **tablet**, and **mobile**.
-- Map is usable with **touch** (pan, zoom, tap pins).
-- **Navigation:** Header with logo, search, and menu (filters, list/map toggle); on mobile, filters in drawer or bottom sheet.
-- **Restaurant detail:** On mobile, full-screen or bottom sheet; “Directions” / “Call” / “Website” are large touch targets.
-
-**User flow**
-
-1. User opens the app on phone or desktop.
-2. Layout adapts (stacked vs side-by-side).
-3. User can find a restaurant, open detail, and get directions without horizontal scrolling or tiny buttons.
-
-**Technical considerations**
-
-- **CSS:** Tailwind breakpoints (e.g. `sm:`, `md:`, `lg:`); flexbox/grid.
-- **Touch:** Ensure Leaflet touch handlers work; avoid double-tap zoom conflicts if needed.
-- **Performance:** Consider fewer pins at low zoom or lazy loading images on mobile.
-
-**Dependencies**
-
-- All UI features adapted to breakpoints.
-
----
-
-### 3.9 Optional: “Call” and “Website” Actions
-
-**What it does**
-
-- In the restaurant detail view (and optionally in the pin popup): **“Call”** and **“Website”** buttons.
-- **Call:** Opens device dialer via `tel:<number>`.
-- **Website:** Opens restaurant URL in a new tab with `target="_blank"` and `rel="noopener noreferrer"`.
-
-**User flow**
-
-1. User is in the detail view.
-2. User taps “Call” → phone app opens with number pre-filled.
-3. User taps “Website” → browser opens restaurant site in new tab.
-
-**Technical considerations**
-
-- Show “Call” only if `phone` exists; “Website” only if `website` exists.
-- Validate website URL to avoid `javascript:` or invalid links (e.g. allow only `http`/`https`).
-
-**Dependencies**
-
-- Detail view and data model (phone, website).
-
----
-
-### 3.10 Optional: Favorites / Saved Restaurants
-
-**What it does**
-
-- User can **save** or **favorite** a restaurant (e.g. heart icon).
-- Saved list is **persisted** (e.g. `localStorage` or account-based backend).
-- A “Favorites” view or filter shows only saved restaurants on the map and/or in the list.
-
-**User flow**
-
-1. User opens a restaurant and taps “Add to favorites”.
-2. Restaurant is added (visual feedback).
-3. User opens “Favorites” and sees saved restaurants; can remove from favorites.
-
-**Technical considerations**
-
-- **localStorage:** Store array of restaurant IDs; no backend for v1.
-- **Auth later:** Sync favorites to backend per user.
-- **UI:** Different pin color or heart icon for favorited restaurants.
-
-**Dependencies**
-
-- Detail view and stable restaurant IDs.
-
----
-
-### 3.11 Optional: Geolocation (“Near Me”)
-
-**What it does**
-
-- A **“Near me”** or **“Use my location”** button that requests the user’s position (browser Geolocation API).
-- Map **centers** on the user; optionally show a “you are here” marker and **sort/filter list by distance**.
-
-**User flow**
-
-1. User taps “Near me”.
-2. Browser asks for location permission; user allows.
-3. Map centers on user; optionally “you are here” marker and list sorted by distance.
-
-**Technical considerations**
-
-- **HTTPS** required for geolocation in production.
-- Handle **permission denied** and errors (timeout, unavailable).
-- **Distance:** Haversine formula from user lat/lng to each restaurant for sorting/filtering.
-
-**Dependencies**
-
-- Map and restaurant coordinates.
-
----
-
-## 4. Implementation Order (8-Part Build)
-
-Use this order so each part builds on the previous one and critical features ship first.
-
-| Part | Feature | Why this order |
-|------|--------|----------------|
-| **1** | **Data model and source** (3.4) | Everything depends on a defined schema and at least a minimal static dataset (e.g. `restaurants.json` with sample entries). |
-| **2** | **Interactive US map with pins** (3.1) | Core experience: map + pins from data. Clicking a pin can show a simple tooltip (name + address). |
-| **3** | **Restaurant detail view** (3.2) | Clicking a pin opens a proper detail panel/page with full info. |
-| **4** | **“Directions” button** (3.3) | High-value action; small implementation once detail view exists. |
-| **5** | **Search** (3.5) | Makes the app usable at scale (name, city, address). |
-| **6** | **Filters** (3.6) | Certification, cuisine, optional “open now”. Improves discovery. |
-| **7** | **List view** (3.7) | Alternative to map; sync with map and filters. |
-| **8** | **Responsive layout and mobile UX** (3.8) | Polish so all of the above work on small screens and touch. |
-
-**Optional (after Part 8 or where they fit):**
-
-- **Call & Website** (3.9) — e.g. with Part 4.
-- **Favorites** (3.10) — after Part 7.
-- **Near me** (3.11) — after Part 5 or 6.
-
----
-
-## 5. For Junior Developers: Tech Stack Explained
-
-*Written from a senior developer’s perspective to help you understand why we chose each piece and how they work together.*
-
----
-
-### 5.1 TypeScript
-
-We use **TypeScript** so that the shape of our data (e.g. `Restaurant`) is defined in one place. When you pass a restaurant into a component or a function, the IDE and the compiler will catch typos and wrong types before the code runs. For this app, that’s especially important for the restaurant object: missing or wrong `latitude`/`longitude` would break the map. Define interfaces or types for `Restaurant`, `RestaurantDetail`, and filter state, and use them everywhere.
-
----
-
-### 5.2 React + Vite
-
-**React** gives us a component-based UI: the map, the list, the detail panel, and the search bar are separate components that receive data via props and communicate via state/callbacks. We use **Vite** instead of Create React App because it’s faster (native ESM, less bundling work) and the config is simpler. You’ll run `npm run dev` for the dev server and `npm run build` for production; the output goes to `dist/`.
-
----
-
-### 5.3 React Router
-
-**React Router** handles which “page” or view is visible. We use it for:
-
-- **Routes:** e.g. `/` (map + list), `/restaurant/:id` (detail).
-- **URL state:** Search and filters in query params (e.g. `?q=pizza&cert=OU`) so users can share or bookmark a filtered view.
-
-That means the app’s state isn’t only in memory—it’s in the URL, which is better for usability and debugging.
-
----
-
-### 5.4 Leaflet + React-Leaflet
-
-**Leaflet** is the map engine; **React-Leaflet** wraps it in React components. You’ll use `<MapContainer>`, `<TileLayer>`, and `<Marker>` (or a custom marker component). We chose Leaflet over Google Maps or Mapbox for v1 because:
-
-- We can use **OpenStreetMap** tiles without an API key.
-- The API is straightforward: add a marker per restaurant, handle click to set “selected” restaurant.
-- **Clustering** (via react-leaflet-cluster) groups nearby pins into one marker until the user zooms in, which keeps the map readable and performant.
-
-Important: Leaflet expects to run in the browser (it uses `window`/DOM). If you use SSR later, you’ll need to load the map only on the client (e.g. dynamic import or a “map container” that mounts only in the browser).
-
----
-
-### 5.5 Zustand
-
-**Zustand** holds **global UI state** that many components need: current search query, active filters, selected restaurant ID, and whether the user is in “map” or “list” view. We use it instead of Redux because we don’t need middleware or heavy boilerplate—just a store with slices and actions. Example: a `useAppStore` hook that exposes `searchQuery`, `setSearchQuery`, `filters`, `setFilters`, and `selectedRestaurantId`. The map, list, and detail panel all read from and update this store so they stay in sync.
-
----
-
-### 5.6 Zod
-
-**Zod** validates the shape of our restaurant data when we load it (e.g. from `restaurants.json`). If the file has a typo in a field name or a wrong type (e.g. a string where we expect a number for `latitude`), Zod will throw a clear error at load time instead of failing later when we try to render the map. Define a schema like `RestaurantSchema` and parse the JSON with `RestaurantSchema.array().parse(data)`. The same schema can drive TypeScript types with `z.infer<typeof RestaurantSchema>` so we have one source of truth.
-
----
-
-### 5.7 Tailwind CSS
-
-**Tailwind** gives us utility classes (e.g. `flex`, `gap-4`, `md:flex-row`, `text-lg`) instead of writing custom CSS for every component. Benefits: consistent spacing and typography, and **responsive design** is built in (e.g. `md:` for tablet, `lg:` for desktop). For this app, use it for the header, the map container, the side panel, and the list so the layout stacks on mobile and sits side-by-side on larger screens. Keep the Tailwind config in one place so we can adjust colors and breakpoints globally.
-
----
-
-### 5.8 TanStack Virtual (List)
-
-When we have hundreds or thousands of restaurants, rendering every row in the list would be slow. **TanStack Virtual** only renders the rows that are visible in the scroll area (plus a small buffer), so the DOM stays small and scrolling stays smooth. You’ll pass the filtered list of restaurants into the virtual list component and render each visible item; the library handles scroll position and item height (fixed or variable).
-
----
-
-### 5.9 Optional: Fuse.js (Fuzzy Search)
-
-For v1, a simple **substring** match on name, city, and address is enough. If we add **Fuse.js** later, we get fuzzy search: typos and partial words still match (e.g. “Teanek” → “Teaneck”). You’d build a Fuse instance from the restaurant list and call `fuse.search(query)` on debounced input; then use the results to drive both the map markers and the list.
-
----
-
-### 5.10 How It Fits Together
-
-- **Data:** We load `restaurants.json`, validate with Zod, and store the array in memory (or in a Zustand slice / React Query if we add an API).
-- **Map:** React-Leaflet renders the map and one marker per restaurant; marker click updates Zustand `selectedRestaurantId` and/or the route to `/restaurant/:id`.
-- **Detail:** The detail panel reads `selectedRestaurantId` from the store (or from the route), finds the restaurant in the list, and renders name, address, hours, “Directions”, “Call”, “Website”.
-- **Search & filters:** The search input and filter controls update Zustand (and optionally the URL). A derived “filtered restaurants” list is computed from the full list + search + filters; the map and the list both consume this same list.
-- **Directions:** “Directions” builds an Apple Maps or Google Maps URL with the restaurant’s address or lat/lng and opens it in a new tab.
-
-If you keep **data flow** in mind (single source of truth for restaurants and for “what’s selected / what’s filtered”), the rest is wiring components to that state and to the URL.
-
----
-
-## 6. Non-Functional Requirements
-
-- **Performance:** Initial load &lt; 3 s on 3G; map pan/zoom and list scroll without noticeable jank.
-- **Accessibility:** Keyboard navigable; focus management in modals; ARIA where needed; contrast and touch targets per WCAG 2.1 AA where feasible.
-- **Browser support:** Last two versions of Chrome, Firefox, Safari, Edge; mobile Safari and Chrome on iOS/Android.
-- **Security:** No injection of user input into `tel:` or `https:` links; validate and sanitize URLs for “Website” (allow only `http`/`https`).
-- **Data:** If we add an API later, use HTTPS and avoid exposing internal keys in the client.
-
----
-
-## 7. Acceptance Criteria (Summary)
-
-- [ ] Map loads with OSM (or chosen) tiles and shows pins for all restaurants in the current dataset.
-- [ ] Clicking a pin selects the restaurant and shows detail (panel or page) with name, address, phone, website, hours, certification, cuisine.
-- [ ] “Directions” opens Apple Maps or Google Maps with the correct destination.
-- [ ] Search filters restaurants by name, city, and address; map and list show only matches.
-- [ ] Filters (certification, cuisine, optional “open now”) narrow results; state reflected in map, list, and URL.
-- [ ] List view shows the same filtered set; clicking an item selects the restaurant and updates map/detail.
-- [ ] Layout is responsive; map and actions work on touch devices.
-- [ ] Optional: Call and Website buttons work when data exists; Favorites persist in localStorage; “Near me” centers map and optionally sorts by distance.
-
----
-
-## 8. Summary Tables
-
-### Features
-
-| # | Feature | Core? | Depends on |
-|---|--------|-------|------------|
-| 1 | Interactive US map with pins | Yes | Data (4) |
-| 2 | Restaurant detail view | Yes | Map (1), Data (4) |
-| 3 | Directions → Apple/Google Maps | Yes | Detail (2), Data (4) |
-| 4 | Data model and source | Yes | — |
-| 5 | Search (name, city, address) | Yes | Data (4), Map (1) |
-| 6 | Filters (certification, cuisine, etc.) | Yes | Data (4), Map (1) |
-| 7 | List view | Yes | Data (4), Map (1), Search/Filters (5,6) |
-| 8 | Responsive + mobile UX | Yes | All UI features |
-| 9 | Call & Website buttons | Optional | Detail (2), Data (4) |
-| 10 | Favorites / saved restaurants | Optional | Detail (2), Data (4) |
-| 11 | Geolocation “Near me” | Optional | Map (1), Data (4) |
-
-### Implementation prompts (per part)
-
-You can turn each of the 8 parts into a single implementation prompt, e.g.:
-
-- **Part 1:** “Implement Part 1: Data model and source. Context: PRD §3.4. Requirements: Define TypeScript types and Zod schema for Restaurant; add `restaurants.json` with at least 5 sample entries including id, name, address, lat/lng, phone, website, hours, certification, cuisine. Load and validate on app init.”
-- **Part 2:** “Implement Part 2: Interactive US map with pins. Context: PRD §3.1. Use React-Leaflet and OSM tiles; render one marker per restaurant; on pin click show tooltip with name and address and set selected restaurant in state.”
-- **Part 3:** “Implement Part 3: Restaurant detail view. Context: PRD §3.2. On pin/list click open a side panel (desktop) or full-screen (mobile) with full restaurant info. Support route `/restaurant/:id`.”
-- … and so on for Parts 4–8 and optional features.
-
----
-
-## 9. Appendix: URL and Data Conventions
-
-### 9.1 URL query params (suggested)
-
-- `q` — search query
-- `cert` — certification (e.g. OU, OK)
-- `cuisine` — cuisine type (e.g. pizza, dairy)
-- `openNow` — 1 or true for “open now” filter
-
-Example: `/?q=brooklyn&cert=OU&cuisine=pizza`
-
-### 9.2 Directions URL formats
-
-- **Apple Maps:** `https://maps.apple.com/?daddr=${encodeURIComponent(address)}` or `?daddr=${lat},${lng}`
-- **Google Maps:** `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}` or `&destination=${lat},${lng}`
-
-### 9.3 Example restaurant JSON (minimal)
-
-```json
-{
-  "id": "rest-1",
-  "name": "Example Kosher Grill",
-  "address": "123 Main St, Brooklyn, NY 11201",
-  "latitude": 40.6782,
-  "longitude": -73.9442,
-  "phone": "+12125551234",
-  "website": "https://example.com",
-  "hours": "Mon–Thu 11am–10pm; Fri 11am–3pm; Sun 12pm–10pm",
-  "certification": "OU",
-  "cuisine": ["Meat", "Grill"],
-  "city": "Brooklyn",
-  "state": "NY"
-}
 ```
+Root stacking context:
+  Header ............. z-[100]  (always on top)
+  Filter bar ......... z-[90]   (below header, above content)
+  Main content area .. isolate  (own stacking context, z-auto)
+    └── Detail panel . z-[60]   (above map within main)
+    └── Backdrop ..... z-[50]   (above map within main)
+    └── Map .......... isolate  (Leaflet z-400+ contained here)
+    └── List ......... z-auto
+```
+
+Key CSS: `.leaflet-container { isolation: isolate; }` contains all Leaflet internal z-indexes so they never escape the map area.
+
+---
+
+## 4. UI & Design
+
+### 4.1 Brand Theme
+
+- **Primary color:** Orange `#f97316` (Tailwind `brand`)
+- **Hover/dark:** `#ea580c` (`brand-dark`)
+- **Light accent:** `#fb923c` (`brand-light`)
+- **Star ratings:** Orange fill (`#f97316`)
+- **Map markers:** Orange teardrop pins with white text numbers
+- **Cluster badges:** Orange circles with white count text
+- **Font:** Helvetica Neue, Helvetica, Arial, sans-serif
+- **Branding:** "KosherEats" wordmark in the header
+
+### 4.2 Component Inventory
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `Header` | `src/components/Header.tsx` | Persistent top bar: logo, search input, result count. |
+| `FilterPanel` | `src/components/FilterPanel.tsx` | Certification chips, cuisine dropdown, map/list toggle (mobile). |
+| `RestaurantList` | `src/components/RestaurantList.tsx` | Virtualized list with sort header and restaurant cards. |
+| `RestaurantMap` | `src/components/RestaurantMap.tsx` | Leaflet map with numbered markers, clusters, flyTo, and resize handler. |
+| `RestaurantDetail` | `src/components/RestaurantDetail.tsx` | Slide-in overlay panel with full restaurant info and actions. |
+| `StarRating` | `src/components/StarRating.tsx` | SVG star rating (full, half, empty) in sm/md/lg sizes. |
+
+### 4.3 State Management (Zustand Store)
+
+| State | Type | Purpose |
+|-------|------|---------|
+| `restaurants` | `Restaurant[] \| null` | Full dataset loaded from JSON. |
+| `selectedRestaurantId` | `string \| null` | Currently selected restaurant (drives detail panel + flyTo). |
+| `searchQuery` | `string` | Current search input. |
+| `certificationFilter` | `string` | Active certification filter. |
+| `cuisineFilter` | `string` | Active cuisine filter. |
+| `viewMode` | `'map' \| 'list'` | Mobile toggle state. |
+| `sortBy` | `SortOption` | Active sort option (7 values). |
+
+Derived state: `getFilteredRestaurants()` applies search → certification → cuisine → sort.
+
+---
+
+## 5. File Structure
+
+```
+public/
+  restaurants.json          # Static restaurant dataset (18 entries)
+src/
+  App.tsx                   # Root layout, data loading, error/loading states
+  index.css                 # Global styles, Tailwind directives, Leaflet overrides
+  main.tsx                  # React entry point
+  schema/
+    restaurant.ts           # Zod schema + TypeScript types
+  store/
+    useAppStore.ts          # Zustand store, filter/sort logic
+  components/
+    Header.tsx
+    FilterPanel.tsx
+    RestaurantList.tsx
+    RestaurantMap.tsx
+    RestaurantDetail.tsx
+    StarRating.tsx
+index.html                  # HTML shell
+vite.config.ts
+tailwind.config.js          # Custom brand color palette
+tsconfig.json
+package.json
+```
+
+---
+
+## 6. URL & Data Conventions
+
+### 6.1 URL Query Params
+
+| Param | Example | Purpose |
+|-------|---------|---------|
+| `q` | `?q=pizza` | Search query |
+| `cert` | `?cert=OU` | Certification filter |
+| `cuisine` | `?cuisine=Pizza` | Cuisine filter |
+
+### 6.2 Directions URL Formats
+
+- **Apple Maps:** `https://maps.apple.com/?daddr=<lat>,<lng>`
+- **Google Maps:** `https://www.google.com/maps/dir/?api=1&destination=<lat>,<lng>`
+
+---
+
+## 7. Acceptance Criteria (v1 — all met)
+
+- [x] Map loads with OSM tiles and shows numbered pins for all restaurants.
+- [x] Marker clustering groups nearby pins with count badges.
+- [x] Clicking a pin flies the map to the restaurant and opens the detail overlay.
+- [x] Clicking a list card does the same (fly + detail).
+- [x] Detail panel shows name, image, rating, reviews, certification, price, cuisine, description, address, hours, phone, website.
+- [x] "Google Maps" and "Apple Maps" direction buttons open the correct URL.
+- [x] "Call" and "Website" buttons work when data exists.
+- [x] Search filters by name, city, address, state with 300ms debounce.
+- [x] Certification chip filters narrow results; cuisine dropdown filters narrow results.
+- [x] Sort dropdown sorts by recommended, rating, reviews, name (A–Z/Z–A), price (low/high).
+- [x] Desktop: persistent header + filter bar + split list/map layout.
+- [x] Mobile: map/list toggle works; detail opens full-screen.
+- [x] Header never covered by map during drag/pan (stacking context isolation).
+- [x] Layout scales for any screen size.
+- [x] Data validated with Zod at load time.
+- [x] List uses virtualized scrolling.
+
+---
+
+## 8. Future Enhancements (v2+)
+
+| Feature | Notes |
+|---------|-------|
+| **Favorites / saved restaurants** | Heart icon, `localStorage` persistence, "Favorites" filter. |
+| **Geolocation ("Near Me")** | Browser Geolocation API, sort by distance, "you are here" marker. |
+| **Fuzzy search (Fuse.js)** | Typo-tolerant search. |
+| **"Open Now" filter** | Requires parseable hours data + timezone-aware logic. |
+| **Backend API** | Replace static JSON with a REST/GraphQL API for dynamic data. |
+| **User reviews & ratings** | User-submitted reviews, authentication. |
+| **Custom map styling** | Mapbox GL JS for branded map tiles. |
+| **Restaurant submission form** | Allow users or owners to submit new restaurants. |
+| **PWA support** | Offline caching, installable. |
 
 ---
 
