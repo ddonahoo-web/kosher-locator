@@ -126,7 +126,7 @@ npm run lint       # Run ESLint
 
 ```
 public/
-  restaurants.json            # Static restaurant dataset (18 entries)
+  restaurants.json            # Static restaurant dataset (5 Austin entries)
 src/
   App.tsx                     # Root layout, data loading, error/loading states
   index.css                   # Global styles, Tailwind directives, Leaflet overrides

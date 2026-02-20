@@ -106,7 +106,7 @@ Static JSON file at `public/restaurants.json`, validated at load time with Zod.
 | `reviewCount` | integer (>= 0) | No | Total review count. |
 | `priceLevel` | "$" \| "$$" \| "$$$" \| "$$$$" | No | Price tier. |
 
-The dataset currently contains 18 restaurants across the US.
+The dataset currently contains 5 real restaurants in Austin, TX: Jewboy Burgers, The Kosher Store, Franklin Barbecue, Salty Sow, and The Shuk.
 
 ### 3.5 Search
 
@@ -222,7 +222,7 @@ Derived state: `getFilteredRestaurants()` applies search → certification → c
 
 ```
 public/
-  restaurants.json          # Static restaurant dataset (18 entries)
+  restaurants.json          # Static restaurant dataset (5 Austin entries)
 src/
   App.tsx                   # Root layout, data loading, error/loading states
   index.css                 # Global styles, Tailwind directives, Leaflet overrides
