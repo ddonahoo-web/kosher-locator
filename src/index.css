@@ -70,7 +70,7 @@ html, body {
   width: 28px;
   height: 28px;
   border-radius: 50% 50% 50% 0;
-  background: #f97316;
+  background: #16a34a;
   color: white;
   font-weight: 700;
   font-size: 12px;
@@ -84,7 +84,7 @@ html, body {
 }
 
 .custom-marker:hover {
-  background: #ea580c;
+  background: #15803d;
   transform: rotate(-45deg) scale(1.1);
 }
 

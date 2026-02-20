@@ -182,12 +182,12 @@ Key CSS: `.leaflet-container { isolation: isolate; }` contains all Leaflet inter
 
 ### 4.1 Brand Theme
 
-- **Primary color:** Orange `#f97316` (Tailwind `brand`)
-- **Hover/dark:** `#ea580c` (`brand-dark`)
-- **Light accent:** `#fb923c` (`brand-light`)
-- **Star ratings:** Orange fill (`#f97316`)
-- **Map markers:** Orange teardrop pins with white text numbers
-- **Cluster badges:** Orange circles with white count text
+- **Primary color:** Green `#16a34a` (Tailwind `brand`)
+- **Hover/dark:** `#15803d` (`brand-dark`)
+- **Light accent:** `#22c55e` (`brand-light`)
+- **Star ratings:** Green fill (`#16a34a`)
+- **Map markers:** Green teardrop pins with white text numbers
+- **Cluster badges:** Green circles with white count text
 - **Font:** Helvetica Neue, Helvetica, Arial, sans-serif
 - **Branding:** "KosherEats" wordmark in the header
 

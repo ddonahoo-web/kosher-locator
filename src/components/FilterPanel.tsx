@@ -122,7 +122,7 @@ export function FilterPanel({
           <button
             type="button"
             onClick={() => clearFilters()}
-            className="px-3 py-1.5 rounded-full text-sm font-medium text-brand border border-brand hover:bg-orange-50 transition-colors whitespace-nowrap shrink-0"
+            className="px-3 py-1.5 rounded-full text-sm font-medium text-brand border border-brand hover:bg-green-50 transition-colors whitespace-nowrap shrink-0"
           >
             Clear Filters
           </button>

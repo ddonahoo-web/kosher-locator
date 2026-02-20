@@ -122,7 +122,7 @@ export function RestaurantMap({ restaurants }: { restaurants: Restaurant[] }) {
             const count = cluster.getChildCount()
             return L.divIcon({
               html: `<div style="
-                background: #f97316;
+                background: #16a34a;
                 color: white;
                 border-radius: 50%;
                 width: 36px;
