@@ -6,4 +6,7 @@ export default defineConfig({
   server: {
     port: 3001,
   },
+  preview: {
+    allowedHosts: ['kosher-locator-production-50f4.up.railway.app', 'kosherrestaurantlocator.com', 'www.kosherrestaurantlocator.com'],
+  },
 })
