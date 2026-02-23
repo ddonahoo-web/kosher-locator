@@ -69,7 +69,6 @@ Platform: Railway
 Build command: npm run build
 Start command: npm run preview
 Domain: www.kosherrestaurantlocator.com
-
-
+](http://localhost:3003/)](http://localhost:3004/)
 License
 This project was created for academic purposes.
